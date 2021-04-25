@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 import json
+import random
 
 import PIL.Image
 from pathlib import Path
@@ -79,45 +80,50 @@ def selectModel():
     model_name = "stylegan_ffhq"  # @param ['pggan_celebahq','stylegan_celebahq', 'stylegan_ffhq']
     latent_space_type = "W"  # @param ['Z', 'W']
     generator = build_generator(model_name)
-
-    ATTRS = ['age', 'eyeglasses', 'gender', 'pose', 'smile']
-    boundaries = {}
-    for i, attr_name in enumerate(ATTRS):
-        boundary_name = f'{model_name}_{attr_name}'
-        if generator.gan_type == 'stylegan' and latent_space_type == 'W':
-            boundaries[attr_name] = np.load(f'content/interfacegan/boundaries/{boundary_name}_w_boundary.npy')
-        else:
-            boundaries[attr_name] = np.load(f'content/interfacegan/boundaries/{boundary_name}_boundary.npy')
-
     num_samples = 1  # @param {type:"slider", min:1, max:8, step:1}
     noise_seed = 870  # @param {type:"slider", min:0, max:1000, step:1}
     data = []
     latent_space = []
+    deleteFiles('static/generate')
     for i in range(0, 4):
         latent_codes = sample_codes(generator, num_samples, latent_space_type, noise_seed)
+        latent_codes = edit_latent_code(latent_codes, [0,0,0,0,0], model_name, generator, latent_space_type)
         if generator.gan_type == 'stylegan' and latent_space_type == 'W':
             synthesis_kwargs = {'latent_space_type': 'W'}
         else:
             synthesis_kwargs = {}
 
         images = generator.easy_synthesize(latent_codes, **synthesis_kwargs)['image']
-        data.append(imshow(images, col=num_samples, name='face' + str(i) + '.png'))
+        filename = "generate/generated_" + str(random.randint(0,100)) + ".png"
+        data.append(imshow(images, col=num_samples, name=filename))
         latent_space.append(json.dumps(latent_codes.tolist()))
     return [data, latent_space]
 
-def edit_image(latent_codes):
+def edit_image(latent_codes, params):
     # @title { display-mode: "form", run: "auto" }
-
-    age = 1  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    eyeglasses = 1  # @param {type:"slider", min:-2.9, max:3.0, step:0.1}
-    gender = 0  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    pose = 0  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    smile = -2 # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-
     model_name = "stylegan_ffhq"  # @param ['pggan_celebahq','stylegan_celebahq', 'stylegan_ffhq']
     latent_space_type = "W"  # @param ['Z', 'W']
+    num_samples = 1  # @param {type:"slider", min:1, max:8, step:1}
     generator = build_generator(model_name)
+    new_codes = edit_latent_code(latent_codes, params, model_name, generator, latent_space_type)
+    new_images = generator.easy_synthesize(new_codes, **{'latent_space_type': 'W'})['image']
+    deleteFiles('static/edit')
+    filename = "edit/edited_" + str(random.randint(0,100)) + ".png"
+    imshow(new_images, col=num_samples, name= filename)
 
+
+def deleteFiles(path):
+    dir = path
+    for f in os.listdir(dir):
+        os.remove(os.path.join(dir, f))
+
+
+def edit_latent_code(latent_codes, params, model_name, generator, latent_space_type):
+    age = params[0]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    eyeglasses = params[1] # @param {type:"slider", min:-2.9, max:3.0, step:0.1}
+    gender = params[2]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    pose = params[3]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    smile = params[4] # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
     ATTRS = ['age', 'eyeglasses', 'gender', 'pose', 'smile']
     boundaries = {}
     for i, attr_name in enumerate(ATTRS):
@@ -127,11 +133,8 @@ def edit_image(latent_codes):
         else:
             boundaries[attr_name] = np.load(f'content/interfacegan/boundaries/{boundary_name}_boundary.npy')
 
-    num_samples = 1  # @param {type:"slider", min:1, max:8, step:1}
-
     new_codes = latent_codes.copy()
     for i, attr_name in enumerate(ATTRS):
         new_codes += boundaries[attr_name] * eval(attr_name)
 
-    new_images = generator.easy_synthesize(new_codes, **{'latent_space_type': 'W'})['image']
-    imshow(new_images, col=num_samples, name="edited.png")
+    return new_codes
