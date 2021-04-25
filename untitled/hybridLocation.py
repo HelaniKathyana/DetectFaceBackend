@@ -87,7 +87,7 @@ def selectModel():
     deleteFiles('static/generate')
     for i in range(0, 4):
         latent_codes = sample_codes(generator, num_samples, latent_space_type, noise_seed)
-        latent_codes = edit_latent_code(latent_codes, [0,0,0,0,0], model_name, generator, latent_space_type)
+        latent_codes = edit_latent_code(latent_codes, [20,100,50,50,50], model_name, generator, latent_space_type)
         if generator.gan_type == 'stylegan' and latent_space_type == 'W':
             synthesis_kwargs = {'latent_space_type': 'W'}
         else:
@@ -109,7 +109,7 @@ def edit_image(latent_codes, params):
     new_images = generator.easy_synthesize(new_codes, **{'latent_space_type': 'W'})['image']
     deleteFiles('static/edit')
     filename = "edit/edited_" + str(random.randint(0,100)) + ".png"
-    imshow(new_images, col=num_samples, name= filename)
+    return imshow(new_images, col=num_samples, name= filename)
 
 
 def deleteFiles(path):
@@ -117,13 +117,20 @@ def deleteFiles(path):
     for f in os.listdir(dir):
         os.remove(os.path.join(dir, f))
 
+def mapParams(value):
+    if value <= 50:
+        return -3 + 3*(value/50)
+    else:
+        return 3*((value-50)/50)
+
 
 def edit_latent_code(latent_codes, params, model_name, generator, latent_space_type):
-    age = params[0]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    eyeglasses = params[1] # @param {type:"slider", min:-2.9, max:3.0, step:0.1}
-    gender = params[2]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    pose = params[3]  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
-    smile = params[4] # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    age = mapParams(params[0])  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    eyeglasses = mapParams(params[4]) # @param {type:"slider", min:-2.9, max:3.0, step:0.1}
+    gender = mapParams(params[1])  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    pose = mapParams(params[2])  # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    smile = mapParams(params[3]) # @param {type:"slider", min:-3.0, max:3.0, step:0.1}
+    print(age)
     ATTRS = ['age', 'eyeglasses', 'gender', 'pose', 'smile']
     boundaries = {}
     for i, attr_name in enumerate(ATTRS):
