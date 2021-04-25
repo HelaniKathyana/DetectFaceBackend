@@ -1,0 +1,7 @@
+.idea
+*.pyc
+content
+model
+venv
+
+*.2144201321208

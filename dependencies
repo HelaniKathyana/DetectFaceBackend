@@ -1,0 +1,9 @@
+pip install opencv-python
+pip install ipython
+pip install Pillow
+pip install pandas
+pip install torch
+pip install mxnet
+pip install keras
+pip install tensorflow
+pip install matplotlib
