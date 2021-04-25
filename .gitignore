@@ -3,5 +3,6 @@
 content
 model
 venv
+./static
 
 *.2144201321208

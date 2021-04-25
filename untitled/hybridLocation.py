@@ -9,6 +9,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
+import json
 
 import PIL.Image
 from pathlib import Path
@@ -17,6 +18,7 @@ import torch
 
 from model.emotion import detectemotion as ime
 from mxnet_moon.lightened_moon import lightened_moon_feature
+
 
 # Load path from .env
 faceProto ="../model/facenet/opencv_face_detector.pbtxt"
@@ -73,7 +75,7 @@ def imshow(images, col, viz_size=256, name='default'):
     return name
 
 
-def selectModel(name):
+def selectModel():
     model_name = "stylegan_ffhq"  # @param ['pggan_celebahq','stylegan_celebahq', 'stylegan_ffhq']
     latent_space_type = "W"  # @param ['Z', 'W']
     generator = build_generator(model_name)
@@ -89,17 +91,19 @@ def selectModel(name):
 
     num_samples = 1  # @param {type:"slider", min:1, max:8, step:1}
     noise_seed = 870  # @param {type:"slider", min:0, max:1000, step:1}
+    data = []
+    latent_space = []
+    for i in range(0, 4):
+        latent_codes = sample_codes(generator, num_samples, latent_space_type, noise_seed)
+        if generator.gan_type == 'stylegan' and latent_space_type == 'W':
+            synthesis_kwargs = {'latent_space_type': 'W'}
+        else:
+            synthesis_kwargs = {}
 
-    latent_codes = sample_codes(generator, num_samples, latent_space_type, noise_seed)
-    if generator.gan_type == 'stylegan' and latent_space_type == 'W':
-        synthesis_kwargs = {'latent_space_type': 'W'}
-    else:
-        synthesis_kwargs = {}
-
-    images = generator.easy_synthesize(latent_codes, **synthesis_kwargs)['image']
-
-    return [imshow(images, col=num_samples, name=name), latent_codes]
-
+        images = generator.easy_synthesize(latent_codes, **synthesis_kwargs)['image']
+        data.append(imshow(images, col=num_samples, name='face' + str(i) + '.png'))
+        latent_space.append(json.dumps(latent_codes.tolist()))
+    return [data, latent_space]
 
 def edit_image(latent_codes):
     # @title { display-mode: "form", run: "auto" }

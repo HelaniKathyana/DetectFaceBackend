@@ -9,12 +9,8 @@ import numpy as np
 
 @api_view(['GET'])
 def index(request):
-    data = []
-    latent_space = []
-    for i in range(0, 4):
-        data.append(hybridLocation.selectModel('face' + str(i) + '.png')[0])
-        latent_space.append(json.dumps(hybridLocation.selectModel('face' + str(i) + '.png')[1].tolist()))
-    return JsonResponse({'data': data, 'latent_codes': latent_space})
+    response = hybridLocation.selectModel()
+    return JsonResponse({'data': response[0], 'latent_codes': response[1]})
 
 
 @api_view(['POST'])
