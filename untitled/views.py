@@ -7,10 +7,12 @@ import json
 import numpy as np
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 def index(request):
-    response = hybridLocation.selectModel()
+    params = eval(request.POST.get('params'))
+    response = hybridLocation.selectModel(params)
     return JsonResponse({'data': response[0], 'latent_codes': response[1]})
+    # return JsonResponse(request.data)
 
 
 @api_view(['POST'])

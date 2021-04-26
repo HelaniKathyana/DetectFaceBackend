@@ -16,6 +16,8 @@ import PIL.Image
 from pathlib import Path
 from dotenv import load_dotenv
 import torch
+import feature_axis
+import pickle
 
 from model.emotion import detectemotion as ime
 from mxnet_moon.lightened_moon import lightened_moon_feature
@@ -76,18 +78,61 @@ def imshow(images, col, viz_size=256, name='default'):
     return name
 
 
-def selectModel():
+def load_tl_gan_model():
+    """
+    Load the linear model (matrix) which maps the feature space
+    to the GAN's latent space.
+    """
+    FEATURE_DIRECTION_FILE = "feature_direction_20181002_044444.pkl"
+    with open(FEATURE_DIRECTION_FILE, 'rb') as f:
+        feature_direction_name = pickle.load(f)
+
+    # Pick apart the feature_direction_name data structure.
+    feature_direction = feature_direction_name['direction']
+    feature_names = feature_direction_name['name']
+    num_feature = feature_direction.shape[1]
+    feature_lock_status = np.zeros(num_feature).astype('bool')
+
+    # Rearrange feature directions using Shaobo's library function.
+    feature_direction_disentangled = \
+        feature_axis.disentangle_feature_axis_by_idx(
+            feature_direction,
+            idx_base=np.flatnonzero(feature_lock_status))
+    return feature_direction_disentangled, feature_names
+
+def get_random_features(feature_names, seed):
+    """
+    Return a random dictionary from feature names to feature
+    values within the range [40,60] (out of [0,100]).
+    """
+    #np.random.seed(seed)
+    features = dict((name, 40+np.random.randint(0,20)) for name in feature_names)
+    features['Male'] = 10
+    return features
+
+
+def selectModel(params):
     model_name = "stylegan_ffhq"  # @param ['pggan_celebahq','stylegan_celebahq', 'stylegan_ffhq']
     latent_space_type = "W"  # @param ['Z', 'W']
     generator = build_generator(model_name)
+    # tl_gan_model, feature_names = load_tl_gan_model()
+    
+
     num_samples = 1  # @param {type:"slider", min:1, max:8, step:1}
     noise_seed = 870  # @param {type:"slider", min:0, max:1000, step:1}
     data = []
     latent_space = []
     deleteFiles('static/generate')
     for i in range(0, 4):
-        latent_codes = sample_codes(generator, num_samples, latent_space_type, noise_seed)
-        latent_codes = edit_latent_code(latent_codes, [20,100,50,50,50], model_name, generator, latent_space_type)
+        # seed = 2783409
+        # features = get_random_features(feature_names, seed)
+        # feature_values = np.array([features[name] for name in feature_names])
+        # feature_values = (feature_values - 50) / 250
+        # Multiply by Shaobo's matrix to get the latent variables.
+        # latent_codes = np.dot(tl_gan_model, feature_values)
+        # latent_codes = latent_codes.reshape(1, -1)
+        latent = sample_codes(generator, num_samples, latent_space_type, noise_seed)
+        latent_codes = edit_latent_code(latent, params, model_name, generator, latent_space_type)
         if generator.gan_type == 'stylegan' and latent_space_type == 'W':
             synthesis_kwargs = {'latent_space_type': 'W'}
         else:
@@ -96,7 +141,7 @@ def selectModel():
         images = generator.easy_synthesize(latent_codes, **synthesis_kwargs)['image']
         filename = "generate/generated_" + str(random.randint(0,100)) + ".png"
         data.append(imshow(images, col=num_samples, name=filename))
-        latent_space.append(json.dumps(latent_codes.tolist()))
+        latent_space.append(json.dumps(latent.tolist()))
     return [data, latent_space]
 
 def edit_image(latent_codes, params):
